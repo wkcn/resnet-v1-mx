@@ -15,7 +15,7 @@ class ResNetV1:
         return x
 
     def conv_bn_act(self, x, num_filter, kernel, stride, pad, name):
-        relu_name = '%s' % name 
+        relu_name = '%s_relu' % name 
         x = self.conv_bn(x, num_filter = num_filter, kernel = kernel, stride = stride, pad = pad, name = name)
         x = mx.sym.Activation(data = x, act_type = 'relu', name = relu_name)
         return x
@@ -72,11 +72,13 @@ class ResNetV1:
 
         x = self.conv_bn_act(x, num_filter = 64, kernel = (7, 7), stride = (2, 2), pad = (3, 3), name = 'conv1')
 
-        x = mx.sym.Pooling(data = x, kernel = (3, 3), pool_type = 'max', stride = (2, 2), name = 'pool1') 
+        x = mx.sym.Pooling(data = x, kernel = (3, 3), pool_type = 'max', stride = (2, 2), pooling_convention = 'full', name = 'pool1') 
 
         for i, u in enumerate(units):
             x = self.residual_unit(x, num_filter = u[1], num_blocks = u[0], unit_id = i + 2)
 
         x = mx.sym.Pooling(data = x, global_pool = True, kernel = (7, 7), pool_type = 'avg', name = 'pool5') 
         x = mx.sym.FullyConnected(data = x, num_hidden = num_classes, flatten = True, name = 'fc1000')
-        return mx.symbol.SoftmaxOutput(data = x, name = 'softmax')
+
+        x = mx.sym.SoftmaxOutput(data = x, name = 'softmax')
+        return x
