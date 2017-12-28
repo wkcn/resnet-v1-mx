@@ -11,7 +11,7 @@ class ResNetV1:
             bn_name = 'bn%s' % (name[3:] if name[:3] == 'res' else name)
 
         x = mx.sym.Convolution(data = x, num_filter = num_filter, kernel = kernel, stride = stride, pad = pad, no_bias = True, name = name)
-        x = mx.sym.BatchNorm(data = x, fix_gamma = False, use_global_stats = True, eps = self.bn_eps, momentum = self.bn_mom, name = bn_name) 
+        x = mx.sym.BatchNorm(data = x, fix_gamma = False, use_global_stats = False, eps = self.bn_eps, momentum = self.bn_mom, name = bn_name) 
         return x
 
     def conv_bn_act(self, x, num_filter, kernel, stride, pad, name):
