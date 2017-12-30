@@ -2,7 +2,7 @@
 
 Implemenation of [Deep Residual Learning for Image Recognition](https://arxiv.org/abs/1512.03385) on MXNet.
 
-The weights of the model is converted from [the origin Caffe implemenation](https://github.com/KaimingHe/deep-residual-networks)
+The weights of the model is converted from [the original Caffe implemenation](https://github.com/KaimingHe/deep-residual-networks)
 
 ## Illustration 
 
