@@ -4,6 +4,7 @@ import logging
 import argparse
 import time
 from symbol_resnetv1 import ResNetV1 
+from moduleEXT import ModuleEXT
 import os
 try:
     import Queue
@@ -93,7 +94,7 @@ def main():
         shuffle     =   False
     )
     
-    model = mx.module.Module(
+    model = ModuleEXT(
             context = devs,
             symbol = sym,
             data_names = ("data", ),
@@ -109,11 +110,12 @@ def main():
         
     initializer = mx.init.Xavier(rnd_type="gaussian", factor_type="in", magnitude=2)
     
-    optimizer = mx.optimizer.NAG(learning_rate = args.lr, 
+    optimizer = mx.optimizer.SGD(learning_rate = args.lr, 
                                     momentum = args.mom, 
                                     wd = args.wd, 
                                     #lr_scheduler = multi_factor_scheduler(begin_epoch, epoch_size, step = [30, 60, 90], factor = 0.1),
-                                    rescale_grad = 1.0 / args.batch_size)
+                                    rescale_grad = 1.0 / args.batch_size,
+                                    sym = sym)
 
     checkpoint = mx.callback.module_checkpoint(model, args.model_prefix, save_optimizer_states = True)
 
@@ -152,7 +154,7 @@ if __name__ == "__main__":
     parser.add_argument("--num-examples", type = int, default = 80000, help = "the number of training examples")
     parser.add_argument("--pretrain-prefix", type = str, default = "./resnet-v1-50-rgb", help = "the prefix name of pretrain model")
     parser.add_argument("--pretrain-epoch", type = int, default = 0, help = 'load the pretrain model on an epoch using the pretrain-epoch')
-    parser.add_argument("--model-prefix", type = str, default = "./model/resnet", help = "the prefix name of the model")
+    parser.add_argument("--model-prefix", type = str, default = "./models/resnet", help = "the prefix name of the model")
     parser.add_argument("--model-load-epoch", type = int, default = 0, help = 'load the model on an epoch using the model-load-prefix')
     parser.add_argument("--log-path", type = str, default = "./logs", help = "the path of the logs")
     args = parser.parse_args()

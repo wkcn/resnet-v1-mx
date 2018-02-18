@@ -78,7 +78,6 @@ class ResNetV1:
 
         num_layers_each_block = 3 if bottleneck else 2
         num_layers = num_layers_each_block * sum(map(lambda x : x[0], units)) + 2 
-
         use_all_alpha = (num_layers <= 50)
 
         x = mx.sym.Variable(name = 'data')
@@ -91,7 +90,7 @@ class ResNetV1:
             x = self.residual_unit(x, num_filter = u[1], num_blocks = u[0], unit_id = i + 2, bottleneck = bottleneck, use_all_alpha = use_all_alpha)
 
         x = mx.sym.Pooling(data = x, global_pool = True, kernel = (7, 7), pool_type = 'avg', name = 'pool5') 
-        x = mx.sym.FullyConnected(data = x, num_hidden = num_classes, flatten = True, name = 'fc%d' % num_classes)
+        x = mx.sym.FullyConnected(data = x, num_hidden = num_classes, flatten = True, name = 'fc%d' % num_classes, attr = {"__lr_mult__" : 1.0})
 
         x = mx.sym.SoftmaxOutput(data = x, name = 'softmax')
         return x
