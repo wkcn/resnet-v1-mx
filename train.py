@@ -49,7 +49,7 @@ def main():
     epoch_size = max(int(args.num_examples / args.batch_size / kv.num_workers), 1)
     
     resnetv1 = ResNetV1()
-    sym = resnetv1.get_resnet50()
+    sym = resnetv1.get_resnet50(num_classes = args.num_classes)
 
 
     devs = mx.cpu() if len(args.gpus) == 0 else [mx.gpu(int(i)) for i in args.gpus.split(",")]
@@ -151,7 +151,7 @@ if __name__ == "__main__":
     parser.add_argument("--data-path", type = str, default = "./", help = "the path of the data")
     parser.add_argument("--num-examples", type = int, default = 80000, help = "the number of training examples")
     parser.add_argument("--pretrain-prefix", type = str, default = "./resnet-v1-50-rgb", help = "the prefix name of pretrain model")
-    parser.add_argument("--prefix-epoch", type = int, default = 0, help = 'load the pretrain model on an epoch using the prefix-epoch')
+    parser.add_argument("--pretrain-epoch", type = int, default = 0, help = 'load the pretrain model on an epoch using the pretrain-epoch')
     parser.add_argument("--model-prefix", type = str, default = "./model/resnet", help = "the prefix name of the model")
     parser.add_argument("--model-load-epoch", type = int, default = 0, help = 'load the model on an epoch using the model-load-prefix')
     parser.add_argument("--log-path", type = str, default = "./logs", help = "the path of the logs")

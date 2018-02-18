@@ -26,6 +26,10 @@ Convert the mean-value file for Caffe (*.binaryproto)
 
 Convert the model to RGB-order input rather than BGR-order
 
+- train.py
+
+An example to train the model
+
 ## Note
 
 The MXNet model uses BGR-order channels too, and we can subtract the channel mean value.
