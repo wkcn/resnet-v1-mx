@@ -22,6 +22,10 @@ Convert the weights file for Caffe(*.caffemodel) into the weights file for MXNet
 
 Convert the mean-value file for Caffe (*.binaryproto)
 
+- convertRGB.py
+
+Convert the model to RGB-order input rather than BGR-order
+
 ## Note
 
 The MXNet model uses BGR-order channels too, and we can subtract the channel mean value.

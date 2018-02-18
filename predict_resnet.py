@@ -29,21 +29,8 @@ def load_checkpoint(prefix, epoch):
             aux_params[name] = v
     return arg_params, aux_params
 
-resnet_units = {
-        50:[
-            (3, 256),
-            (4, 512),
-            (6, 1024),
-            (3, 2048)
-        ],
-        101:[
-            (3, 256),
-            (4, 512),
-            (23, 1024),
-            (3, 2048)]
-}
 resnetv1 = ResNetV1()
-sym = resnetv1.get_symbol(num_classes = 1000, units = resnet_units[101])
+sym = resnetv1.get_resnet101()
 
 ctx = mx.cpu(0)
 
