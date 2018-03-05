@@ -24,6 +24,7 @@ import mxnet as mx
 import numpy as np
 import logging
 import warnings
+from mxnet.module.module import *
 from mxnet.model import _create_kvstore, _initialize_kvstore, _update_params, _update_params_on_kvstore
 
 class ModuleEXT(mx.module.Module): 
@@ -217,3 +218,75 @@ class ModuleEXT(mx.module.Module):
             assert name in self._param_name2idx, "%s is not any parameter name" % name
             idx.extend(self._param_name2idx[name])
         return idx
+
+
+    def init_params(self, initializer=Uniform(0.01), arg_params=None, aux_params=None,
+                    allow_missing=False, force_init=False, allow_extra=False):
+        """Initializes the parameters and auxiliary states.
+
+        Parameters
+        ----------
+        initializer : Initializer
+            Called to initialize parameters if needed.
+        arg_params : dict
+            If not ``None``, should be a dictionary of existing arg_params. Initialization
+            will be copied from that.
+        aux_params : dict
+            If not ``None``, should be a dictionary of existing aux_params. Initialization
+            will be copied from that.
+        allow_missing : bool
+            If ``True``, params could contain missing values, and the initializer will be
+            called to fill those missing params.
+        force_init : bool
+            If ``True``, will force re-initialize even if already initialized.
+        allow_extra : boolean, optional
+            Whether allow extra parameters that are not needed by symbol.
+            If this is True, no error will be thrown when arg_params or aux_params
+            contain extra parameters that is not needed by the executor.
+        """
+        if self.params_initialized and not force_init:
+            warnings.warn("Parameters already initialized and force_init=False. "
+                          "init_params call ignored.", stacklevel=2)
+            return
+        assert self.binded, 'call bind before initializing the parameters'
+
+        def _impl(name, arr, cache):
+            """Internal helper for parameter initialization"""
+
+            def _init_param(name, arr):
+                if type(initializer) == dict:
+                    init_type = name.attrs.get('__initializer__', 'default')
+                    assert init_type in initializer, "initializer setting %s not found" % init_type
+                    initializer[init_type](name, arr)
+                else:
+                    initializer(name, arr)
+
+            if cache is not None:
+                if name in cache:
+                    cache_arr = cache[name]
+                    # just in case the cached array is just the target itself
+                    if cache_arr is not arr:
+                        cache_arr.copyto(arr)
+                else:
+                    if not allow_missing:
+                        raise RuntimeError("%s is not presented" % name)
+                    elif initializer is not None:
+                        _init_param(name, arr)
+            else:
+                _init_param(name, arr)
+
+        attrs = self._symbol.attr_dict()
+        for name, arr in sorted(self._arg_params.items()):
+            desc = InitDesc(name, attrs.get(name, None))
+            _impl(desc, arr, arg_params)
+
+        for name, arr in sorted(self._aux_params.items()):
+            desc = InitDesc(name, attrs.get(name, None))
+            _impl(desc, arr, aux_params)
+
+        self.params_initialized = True
+        self._params_dirty = False
+
+        # copy the initialized parameters to devices
+        self._exec_group.set_params(self._arg_params, self._aux_params,
+                                    allow_extra=allow_extra)
