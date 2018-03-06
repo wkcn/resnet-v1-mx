@@ -57,8 +57,8 @@ def main():
     print ("Using Device {}".format(devs))
 
     train_iter = mx.io.ImageRecordIter(
-        path_imgrec =   os.path.join(args.data_path, "train256.rec"),
-        path_imglist = os.path.join(args.data_path, "train.lst"),
+        path_imgrec =   os.path.join(args.data_path, "train_shuffle.rec"),
+        path_imglist = os.path.join(args.data_path, "train_shuffle.lst"),
         data_name   =   'data',
         label_name  =   'softmax_label',
         data_shape  =   (3, 224, 224),
@@ -76,11 +76,13 @@ def main():
         max_rotate_angle    =   10,
         max_shear_ratio     =   0.1,
         rand_mirror =   True,
-        shuffle     =   True
+        shuffle     =   True,
+        num_parts   =   kv.num_workers,
+        part_index  =   kv.rank
     )
     
     val_iter = mx.io.ImageRecordIter(
-        path_imgrec = os.path.join(args.data_path, "val256.rec"),
+        path_imgrec = os.path.join(args.data_path, "val.rec"),
         path_imglist = os.path.join(args.data_path, "val.lst"),
         data_name   =   'data',
         label_name  =   'softmax_label',
@@ -91,7 +93,9 @@ def main():
         mean_g      =   MEAN_COLOR[1],
         mean_b      =   MEAN_COLOR[2],
         rand_mirror =   False,
-        shuffle     =   False
+        shuffle     =   False,
+        num_parts   =   kv.num_workers,
+        part_index  =   kv.rank
     )
     
     model = ModuleEXT(
@@ -101,19 +105,24 @@ def main():
             label_names = ("softmax_label", ),
     )
 
-    if begin_epoch == 0:
+    arg_params = None
+    aux_params = None
+
+    if begin_epoch == 0 and args.finetune:
         arg_params, aux_params = load_checkpoint(args.pretrain_prefix, args.pretrain_epoch)
     else:
         # Load Params
         _, arg_params, aux_params = mx.model.load_checkpoint(args.model_prefix, begin_epoch)
-
         
-    initializer = mx.init.Xavier(rnd_type="gaussian", factor_type="in", magnitude=2)
+    initializer = {
+            "default": mx.init.MSRAPrelu(factor_type = 'in', slope = 0),
+            "xavier" : mx.init.Xavier(rnd_type = 'gaussian', factor_type = 'in', magnitude = 2)
+    }
     
-    optimizer = mx.optimizer.SGD(learning_rate = args.lr, 
+    optimizer = mx.optimizer.NAG(learning_rate = args.lr,
                                     momentum = args.mom, 
                                     wd = args.wd, 
-                                    #lr_scheduler = multi_factor_scheduler(begin_epoch, epoch_size, step = [30, 60, 90], factor = 0.1),
+                                    lr_scheduler = multi_factor_scheduler(begin_epoch, epoch_size, step = [30, 60, 90], factor = 0.1),
                                     rescale_grad = 1.0 / args.batch_size,
                                     sym = sym)
 
@@ -123,7 +132,7 @@ def main():
     model.fit(
             train_data = train_iter,
             eval_data = val_iter, 
-            eval_metric = [mx.metric.CrossEntropy(), mx.metric.Accuracy()], 
+            eval_metric = [mx.metric.CrossEntropy(), mx.metric.Accuracy(), mx.metric.TopKAccuracy(5)],
 
             begin_epoch = begin_epoch,
             num_epoch = args.num_epoch,
@@ -135,6 +144,8 @@ def main():
             
             initializer = initializer, 
             allow_missing = False,
+
+            kvstore = kv,
             
             batch_end_callback = mx.callback.Speedometer(args.batch_size, args.frequent),
             epoch_end_callback = checkpoint
@@ -142,20 +153,21 @@ def main():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description = "ResNet")
-    parser.add_argument("--gpus", type = str, default = "0,1", help = "the gpus will be used, e.g '0,1'")
-    parser.add_argument("--lr", type = float, default = 1e-4, help = "learning rate")
-    parser.add_argument("--batch-size", type = int, default = 128*2, help = "batch size")
+    parser.add_argument("--gpus", type = str, default = "0,1,2,3", help = "the gpus will be used, e.g '0,1'")
+    parser.add_argument("--lr", type = float, default = 1e-1, help = "learning rate")
+    parser.add_argument("--batch-size", type = int, default = 256, help = "batch size")
     parser.add_argument("--num-epoch", type = int, default = 120)
     parser.add_argument("--num-classes", type = int, default = 1000)
     parser.add_argument("--frequent", type = int, default = 50, help = "frequency of logging")
     parser.add_argument("--mom", type = float, default = 0.9, help = "momentum for optimizer")
     parser.add_argument("--wd", type = float, default = 0.0001, help = "weight decay for optimizer")
     parser.add_argument("--data-path", type = str, default = "./", help = "the path of the data")
-    parser.add_argument("--num-examples", type = int, default = 80000, help = "the number of training examples")
+    parser.add_argument("--num-examples", type = int, default = 1281167, help = "the number of training examples")
     parser.add_argument("--pretrain-prefix", type = str, default = "./resnet-v1-50-rgb", help = "the prefix name of pretrain model")
     parser.add_argument("--pretrain-epoch", type = int, default = 0, help = 'load the pretrain model on an epoch using the pretrain-epoch')
     parser.add_argument("--model-prefix", type = str, default = "./models/resnet", help = "the prefix name of the model")
     parser.add_argument("--model-load-epoch", type = int, default = 0, help = 'load the model on an epoch using the model-load-prefix')
+    parser.add_argument("--finetune", type = bool, default = 0, help = "whether to finetune the model")
     parser.add_argument("--log-path", type = str, default = "./logs", help = "the path of the logs")
     args = parser.parse_args()
     
